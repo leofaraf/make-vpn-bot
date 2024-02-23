@@ -1,14 +1,5 @@
-use std::default;
+use telepages::prelude::*;
 
-use teloxide::{dispatching::dialogue::{self, InMemStorage}, dptree::di, handler, prelude::*, types::{InlineKeyboardButton, InlineKeyboardMarkup, MessageId, ParseMode}};
-
-type HandlerResult = Result<(), Box<dyn std::error::Error + Send + Sync>>;
-
-const BUTTON_BACK: &str = "Back";
-const BUTTON_START: &str = "Let's start!";
-const BUTTON_CONTINUE: &str = "Continue";
-
-// Powered by MarkdownV2
 const START_MESSAGE: &str = r"<b>We will help make your VPN</b>
 
 <b>Pros</b>
@@ -48,99 +39,26 @@ const END_MESSAGE: &str = r"<b>Thanks for watching!</b>
 #[tokio::main]
 async fn main() {
     pretty_env_logger::init();
-    let bot = Bot::from_env();
+    let bot = TelegramBot::from_env();
 
-    Dispatcher::builder(
-        bot,
-        dptree::entry()
-            .branch(Update::filter_message().endpoint(start))
-            .branch(Update::filter_callback_query().endpoint(pages))
-    )
-        .enable_ctrlc_handler()
-        .build()
-        .dispatch()
-        .await;
-}
-
-async fn start(bot: Bot, msg: Message) -> HandlerResult {
-    log::info!("start");
-    bot.send_message(msg.chat.id, START_MESSAGE)
-        .reply_markup(start_makeup())
-        .parse_mode(ParseMode::Html)
-        .await?;
-
-    Ok(())
-}
-
-fn start_makeup() -> InlineKeyboardMarkup {
-    InlineKeyboardMarkup::new([
-        [
-            InlineKeyboardButton::callback(BUTTON_START, "1")
-        ]
-    ])
-}
-
-fn back_makeup(last_index: &str) -> InlineKeyboardMarkup {
-    InlineKeyboardMarkup::new([
-        [
-            InlineKeyboardButton::callback(BUTTON_BACK, last_index)
-        ]
-    ])
-}
-
-fn makeup(back_index: &str, continue_index: &str) -> InlineKeyboardMarkup {
-    InlineKeyboardMarkup::new([
-        [
-            InlineKeyboardButton::callback(BUTTON_BACK, back_index),
-            InlineKeyboardButton::callback(BUTTON_CONTINUE, continue_index)
-        ]
-    ])
-}
-
-async fn pages(bot: Bot, callback: CallbackQuery) -> HandlerResult {
-    let data = callback.data.unwrap();
-    let msg = callback.message.unwrap();
-
-    match data.as_str() {
-        "0" => {
-            bot.edit_message_text(msg.chat.id, msg.id, START_MESSAGE)
-                .reply_markup(start_makeup())
-                .parse_mode(ParseMode::Html)
-                .await?;
-        },
-        "1" => {
-            bot.edit_message_text(msg.chat.id, msg.id, SUMMARY_MESSAGE)
-                .reply_markup(makeup("0", "2"))
-                .parse_mode(ParseMode::Html)
-                .await?;
-        },
-        "2" => {
-            bot.edit_message_text(msg.chat.id, msg.id, MAKE_SERVER_MESSAGE)
-                .reply_markup(makeup("1", "3"))
-                .parse_mode(ParseMode::Html)
-                .await?;
-        },
-        "3" => {
-            bot.edit_message_text(msg.chat.id, msg.id, CONFIGURE_VPN_MESSAGE)
-                .reply_markup(makeup("2", "4"))
-                .parse_mode(ParseMode::Html)
-                .await?;
-        },
-        "4" => {
-            bot.edit_message_text(msg.chat.id, msg.id, SHARE_VPN_MESSAGE)
-                .reply_markup(makeup("3", "5"))
-                .parse_mode(ParseMode::Html)
-                .await?;
-        },
-        "5" => {
-            bot.edit_message_text(msg.chat.id, msg.id, END_MESSAGE)
-                .reply_markup(back_makeup("4"))
-                .parse_mode(ParseMode::Html)
-                .await?;
-        },
-        _ => {}
-    };
-
-    bot.answer_callback_query(callback.id).await?;
-    Ok(())
+    bot.repl(vec![
+        Page::builder()
+            .text(Some(START_MESSAGE.into()))
+            .build(),
+        Page::builder()
+            .text(Some(SUMMARY_MESSAGE.into()))
+            .build(),
+        Page::builder()
+            .text(Some(MAKE_SERVER_MESSAGE.into()))
+            .build(),
+        Page::builder()
+            .text(Some(CONFIGURE_VPN_MESSAGE.into()))
+            .build(),
+        Page::builder()
+            .text(Some(SHARE_VPN_MESSAGE.into()))
+            .build(),
+        Page::builder()
+            .text(Some(END_MESSAGE.into()))
+            .build(),
+    ]).await;
 }
